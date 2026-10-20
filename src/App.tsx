@@ -235,7 +235,7 @@ export function App() {
         <div className="hidden md:block pt-4 border-t border-on-primary/10 text-label-sm text-on-primary/70 space-y-2">
           <div className="flex items-center gap-1.5 text-tertiary-fixed font-semibold">
             <ShieldCheck className="w-4 h-4" />
-            <span>Persistencia SQLite Local</span>
+            <span>Persistencia postgreSQL</span>
           </div>
           <p className="text-[11px] text-on-primary/60">
             Arquitectura 3 Capas Backend Express + API v1.
