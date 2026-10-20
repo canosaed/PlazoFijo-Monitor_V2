@@ -15,11 +15,11 @@ import { exportBackup, restoreBackup, processBulkImport } from '../services/impo
 const router = Router();
 
 // GET /api/v1/deposits
-router.get('/deposits', (req: Request, res: Response) => {
+router.get('/deposits', async (req: Request, res: Response) => {
   try {
-    const db = getDb();
+    const db = await getDb();
     const includeDemo = req.query.includeDemo !== 'false';
-    const deposits = getAllDeposits(db, includeDemo);
+    const deposits = await getAllDeposits(db, includeDemo);
     res.json({ success: true, data: deposits });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -27,10 +27,10 @@ router.get('/deposits', (req: Request, res: Response) => {
 });
 
 // GET /api/v1/deposits/:id
-router.get('/deposits/:id', (req: Request, res: Response) => {
+router.get('/deposits/:id', async (req: Request, res: Response) => {
   try {
-    const db = getDb();
-    const deposit = getDepositById(db, req.params.id);
+    const db = await getDb();
+    const deposit = await getDepositById(db, req.params.id);
     if (!deposit) {
       return res.status(404).json({ success: false, error: 'Plazo fijo no encontrado' });
     }
@@ -41,14 +41,14 @@ router.get('/deposits/:id', (req: Request, res: Response) => {
 });
 
 // POST /api/v1/deposits
-router.post('/deposits', (req: Request, res: Response) => {
+router.post('/deposits', async (req: Request, res: Response) => {
   try {
-    const db = getDb();
+    const db = await getDb();
     const { deposit, eventDescription } = req.body;
     if (!deposit || !deposit.bank || !deposit.capital || !deposit.startDate || !deposit.endDate) {
       return res.status(400).json({ success: false, error: 'Campos requeridos incompletos' });
     }
-    const saved = saveDeposit(db, deposit, eventDescription);
+    const saved = await saveDeposit(db, deposit, eventDescription);
     res.json({ success: true, data: saved });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -56,11 +56,11 @@ router.post('/deposits', (req: Request, res: Response) => {
 });
 
 // POST /api/v1/deposits/:id/confirm-collection
-router.post('/deposits/:id/confirm-collection', (req: Request, res: Response) => {
+router.post('/deposits/:id/confirm-collection', async (req: Request, res: Response) => {
   try {
-    const db = getDb();
+    const db = await getDb();
     const { collectedInterest, collectedCapital, closeInvestment } = req.body;
-    const updated = confirmCollection(
+    const updated = await confirmCollection(
       db, 
       req.params.id, 
       Number(collectedInterest || 0), 
@@ -74,14 +74,14 @@ router.post('/deposits/:id/confirm-collection', (req: Request, res: Response) =>
 });
 
 // POST /api/v1/deposits/:id/renew
-router.post('/deposits/:id/renew', (req: Request, res: Response) => {
+router.post('/deposits/:id/renew', async (req: Request, res: Response) => {
   try {
-    const db = getDb();
+    const db = await getDb();
     const { newCapital, newTna, newDays, newStartDate, autoRenewal } = req.body;
     if (!newCapital || !newTna || !newDays || !newStartDate) {
       return res.status(400).json({ success: false, error: 'Parámetros de renovación incompletos' });
     }
-    const result = renewDeposit(
+    const result = await renewDeposit(
       db, 
       req.params.id, 
       Number(newCapital), 
@@ -97,22 +97,22 @@ router.post('/deposits/:id/renew', (req: Request, res: Response) => {
 });
 
 // DELETE /api/v1/deposits/:id
-router.delete('/deposits/:id', (req: Request, res: Response) => {
+router.delete('/deposits/:id', async (req: Request, res: Response) => {
   try {
-    const db = getDb();
-    deleteDeposit(db, req.params.id);
+    const db = await getDb();
+    await deleteDeposit(db, req.params.id);
     res.json({ success: true, message: 'Plazo fijo eliminado correctamente' });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// DELETE /api/v1/deposits (clear demo or all)
-router.post('/clear-data', (req: Request, res: Response) => {
+// POST /api/v1/clear-data
+router.post('/clear-data', async (req: Request, res: Response) => {
   try {
-    const db = getDb();
+    const db = await getDb();
     const { includeReal } = req.body;
-    clearData(db, Boolean(includeReal));
+    await clearData(db, Boolean(includeReal));
     res.json({ success: true, message: 'Datos borrados exitosamente' });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -120,11 +120,11 @@ router.post('/clear-data', (req: Request, res: Response) => {
 });
 
 // GET /api/v1/events
-router.get('/events', (req: Request, res: Response) => {
+router.get('/events', async (req: Request, res: Response) => {
   try {
-    const db = getDb();
+    const db = await getDb();
     const depositId = req.query.depositId as string | undefined;
-    const events = getAllEvents(db, depositId);
+    const events = await getAllEvents(db, depositId);
     res.json({ success: true, data: events });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -132,25 +132,25 @@ router.get('/events', (req: Request, res: Response) => {
 });
 
 // GET /api/v1/financial-entities
-router.get('/financial-entities', (_req: Request, res: Response) => {
+router.get('/financial-entities', async (_req: Request, res: Response) => {
   try {
-    const db = getDb();
-    const rows = db.prepare('SELECT * FROM entidades_financieras WHERE activo = 1 ORDER BY nombre ASC').all();
-    res.json({ success: true, data: rows });
+    const db = await getDb();
+    const resDb = await db.query('SELECT * FROM entidades_financieras WHERE activo = 1 ORDER BY nombre ASC');
+    res.json({ success: true, data: resDb.rows });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
 // POST /api/v1/import
-router.post('/import', (req: Request, res: Response) => {
+router.post('/import', async (req: Request, res: Response) => {
   try {
-    const db = getDb();
+    const db = await getDb();
     const { deposits, fileName } = req.body;
     if (!Array.isArray(deposits)) {
       return res.status(400).json({ success: false, error: 'Lista de plazos fijos requerida' });
     }
-    const result = processBulkImport(db, deposits, fileName || 'import.csv');
+    const result = await processBulkImport(db, deposits, fileName || 'import.csv');
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -158,10 +158,10 @@ router.post('/import', (req: Request, res: Response) => {
 });
 
 // GET /api/v1/backup
-router.get('/backup', (_req: Request, res: Response) => {
+router.get('/backup', async (_req: Request, res: Response) => {
   try {
-    const db = getDb();
-    const backup = exportBackup(db);
+    const db = await getDb();
+    const backup = await exportBackup(db);
     res.json({ success: true, data: backup });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -169,11 +169,11 @@ router.get('/backup', (_req: Request, res: Response) => {
 });
 
 // POST /api/v1/backup/restore
-router.post('/backup/restore', (req: Request, res: Response) => {
+router.post('/backup/restore', async (req: Request, res: Response) => {
   try {
-    const db = getDb();
+    const db = await getDb();
     const backupData = req.body;
-    const result = restoreBackup(db, backupData);
+    const result = await restoreBackup(db, backupData);
     res.json({ success: true, data: result });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });
@@ -181,9 +181,9 @@ router.post('/backup/restore', (req: Request, res: Response) => {
 });
 
 // POST /api/v1/migrate-indexeddb (idempotent migration)
-router.post('/migrate-indexeddb', (req: Request, res: Response) => {
+router.post('/migrate-indexeddb', async (req: Request, res: Response) => {
   try {
-    const db = getDb();
+    const db = await getDb();
     const { deposits, events } = req.body;
     if (!Array.isArray(deposits)) {
       return res.status(400).json({ success: false, error: 'Deposits array required' });
@@ -191,17 +191,18 @@ router.post('/migrate-indexeddb', (req: Request, res: Response) => {
 
     let migratedDeposits = 0;
     for (const dep of deposits) {
-      saveDeposit(db, dep, 'Migración transparente desde IndexedDB');
+      await saveDeposit(db, dep, 'Migración transparente desde IndexedDB');
       migratedDeposits++;
     }
 
     if (Array.isArray(events)) {
       for (const evt of events) {
-        db.prepare(`
-          INSERT OR IGNORE INTO eventos_plazo_fijo (
+        await db.query(`
+          INSERT INTO eventos_plazo_fijo (
             id, plazo_fijo_id, timestamp, tipo_evento, descripcion, monto_capital, monto_interes, monto_total
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ON CONFLICT(id) DO NOTHING
+        `, [
           evt.id,
           evt.depositId || evt.plazo_fijo_id,
           evt.timestamp,
@@ -210,7 +211,7 @@ router.post('/migrate-indexeddb', (req: Request, res: Response) => {
           evt.amounts?.capital ?? evt.monto_capital ?? null,
           evt.amounts?.interest ?? evt.monto_interes ?? null,
           evt.amounts?.total ?? evt.monto_total ?? null
-        );
+        ]);
       }
     }
 

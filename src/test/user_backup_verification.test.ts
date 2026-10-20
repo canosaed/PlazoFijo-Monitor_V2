@@ -1,16 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { initDatabase } from '../../server/db/database';
-import { restoreBackup, exportBackup } from '../../server/services/importExportService';
+import fs from 'fs';
+import path from 'path';
+import { createTestDb } from './testDbHelper';
+import { restoreBackup } from '../../server/services/importExportService';
 import { getAllDeposits, getAllEvents } from '../../server/services/depositService';
 
 describe('Verificación de Estructura de Respaldo JSON', () => {
-  let db: ReturnType<typeof initDatabase>;
+  let db: any;
 
   beforeEach(() => {
-    db = initDatabase(':memory:');
+    db = createTestDb();
   });
 
-  it('debe validar y restaurar un respaldo JSON completo con UUIDs, tasas TEA y eventos', () => {
+  it('debe validar y restaurar un respaldo JSON completo con UUIDs, tasas TEA y eventos', async () => {
     const userBackupSample = {
       version: 1,
       exportedAt: '2026-10-19T17:48:39.697Z',
@@ -84,11 +86,11 @@ describe('Verificación de Estructura de Respaldo JSON', () => {
       ]
     };
 
-    const res = restoreBackup(db, userBackupSample);
+    const res = await restoreBackup(db, userBackupSample);
     expect(res.importedDeposits).toBe(2);
     expect(res.importedEvents).toBe(1);
 
-    const deposits = getAllDeposits(db, true);
+    const deposits = await getAllDeposits(db, true);
     expect(deposits).toHaveLength(2);
 
     const uvaDeposit = deposits.find(d => d.type === 'UVA');
@@ -97,10 +99,25 @@ describe('Verificación de Estructura de Respaldo JSON', () => {
     expect(uvaDeposit?.tea).toBe(2.17);
     expect(uvaDeposit?.notes).toContain('Cantidad de UVAs');
 
-    const events = getAllEvents(db, '00a78b8a-a0fd-4063-bd94-064f33c3ff7b');
+    const events = await getAllEvents(db, '00a78b8a-a0fd-4063-bd94-064f33c3ff7b');
     expect(events.length).toBeGreaterThan(0);
     const modEvent = events.find(e => e.id === 'evt_1792431977455_c8wr5');
     expect(modEvent).toBeDefined();
     expect(modEvent?.type).toBe('MODIFICACION');
+  });
+
+  it('debe importar correctamente el archivo de respaldo adjunto backup_plazos_fijos_pro_2026-10-19.json', async () => {
+    const backupFilePath = path.join(process.cwd(), 'server/data/backup_plazos_fijos_pro_2026-10-19.json');
+    const userBackup = JSON.parse(fs.readFileSync(backupFilePath, 'utf-8'));
+
+    const res = await restoreBackup(db, userBackup);
+    expect(res.importedDeposits).toBe(15);
+    expect(res.importedEvents).toBe(30);
+
+    const deposits = await getAllDeposits(db, true);
+    expect(deposits).toHaveLength(15);
+
+    const events = await getAllEvents(db);
+    expect(events.length).toBeGreaterThanOrEqual(30);
   });
 });

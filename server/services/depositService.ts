@@ -1,4 +1,3 @@
-import Database from 'better-sqlite3';
 import { calculateEstimatedInterest, deriveDepositStatus } from './financialService.js';
 import { logAudit } from './auditService.js';
 
@@ -31,6 +30,45 @@ export interface DepositData {
   updatedAt?: string;
 }
 
+function formatDateString(val: any): string {
+  if (!val) return '';
+  if (val instanceof Date) {
+    return val.toISOString().split('T')[0];
+  }
+  const str = String(val);
+  return str.includes('T') ? str.split('T')[0] : str;
+}
+
+function formatDateTimeString(val: any): string {
+  if (!val) return new Date().toISOString();
+  if (val instanceof Date) {
+    return val.toISOString();
+  }
+  return String(val);
+}
+
+export async function withTransaction<T>(db: any, callback: (client: any) => Promise<T>): Promise<T> {
+  const isPool = typeof db.connect === 'function';
+  const client = isPool ? await db.connect() : db;
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (_) {
+      // Ignore rollback errors if already aborted
+    }
+    throw err;
+  } finally {
+    if (isPool) {
+      client.release();
+    }
+  }
+}
+
 export function mapRowToDeposit(row: any): any {
   if (!row) return null;
   return {
@@ -39,8 +77,8 @@ export function mapRowToDeposit(row: any): any {
     description: row.descripcion || '',
     type: row.tipo || 'TRADICIONAL_TF',
     capital: Number(row.capital),
-    startDate: row.fecha_inicio,
-    endDate: row.fecha_vencimiento,
+    startDate: formatDateString(row.fecha_inicio),
+    endDate: formatDateString(row.fecha_vencimiento),
     days: Number(row.dias),
     tna: Number(row.tna),
     tea: row.tea != null ? Number(row.tea) : null,
@@ -56,35 +94,35 @@ export function mapRowToDeposit(row: any): any {
     nextId: row.id_plazo_siguiente || null,
     notes: row.observaciones || '',
     isDemo: Boolean(row.is_demo),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: formatDateTimeString(row.created_at),
+    updatedAt: formatDateTimeString(row.updated_at),
   };
 }
 
-export function getAllDeposits(db: Database.Database, includeDemo: boolean = true): any[] {
+export async function getAllDeposits(db: any, includeDemo: boolean = true): Promise<any[]> {
   let query = 'SELECT * FROM plazos_fijos';
   if (!includeDemo) {
     query += ' WHERE is_demo = 0';
   }
   query += ' ORDER BY fecha_vencimiento ASC';
 
-  const rows = db.prepare(query).all();
-  return rows.map(r => {
+  const res = await db.query(query);
+  return res.rows.map((r: any) => {
     const dep = mapRowToDeposit(r);
     dep.status = deriveDepositStatus(dep.endDate, dep.status);
     return dep;
   });
 }
 
-export function getDepositById(db: Database.Database, id: string): any | null {
-  const row = db.prepare('SELECT * FROM plazos_fijos WHERE id = ?').get(id);
-  if (!row) return null;
-  const dep = mapRowToDeposit(row);
+export async function getDepositById(db: any, id: string): Promise<any | null> {
+  const res = await db.query('SELECT * FROM plazos_fijos WHERE id = $1', [id]);
+  if (res.rows.length === 0) return null;
+  const dep = mapRowToDeposit(res.rows[0]);
   dep.status = deriveDepositStatus(dep.endDate, dep.status);
   return dep;
 }
 
-export function saveDeposit(db: Database.Database, data: DepositData, eventDescription?: string): any {
+export async function saveDeposit(db: any, data: DepositData, eventDescription?: string): Promise<any> {
   const now = new Date().toISOString();
   const id = data.id || `pf_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
   
@@ -92,52 +130,51 @@ export function saveDeposit(db: Database.Database, data: DepositData, eventDescr
   const estimatedTotalAmount = data.estimatedTotalAmount ?? (data.capital + estimatedInterest);
   const status = data.status || deriveDepositStatus(data.endDate, 'VIGENTE');
 
-  const existingRow = db.prepare('SELECT * FROM plazos_fijos WHERE id = ?').get(id);
-  const isUpdate = Boolean(existingRow);
+  return await withTransaction(db, async (client) => {
+    const existingRes = await client.query('SELECT * FROM plazos_fijos WHERE id = $1', [id]);
+    const existingRow = existingRes.rows[0];
+    const isUpdate = Boolean(existingRow);
 
-  const stmt = db.prepare(`
-    INSERT INTO plazos_fijos (
-      id, entidad_id, banco, descripcion, tipo, capital, moneda,
-      fecha_inicio, fecha_vencimiento, dias, tna, tea,
-      interes_estimado, interes_informado, interes_cobrado,
-      monto_estimado, monto_informado, capital_recibido,
-      renovacion_automatica, estado, id_plazo_anterior, id_plazo_siguiente,
-      observaciones, is_demo, created_at, updated_at
-    ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?,
-      ?, ?, ?, ?, ?,
-      ?, ?, ?,
-      ?, ?, ?,
-      ?, ?, ?, ?,
-      ?, ?, ?, ?
-    )
-    ON CONFLICT(id) DO UPDATE SET
-      banco=excluded.banco,
-      descripcion=excluded.descripcion,
-      tipo=excluded.tipo,
-      capital=excluded.capital,
-      fecha_inicio=excluded.fecha_inicio,
-      fecha_vencimiento=excluded.fecha_vencimiento,
-      dias=excluded.dias,
-      tna=excluded.tna,
-      tea=excluded.tea,
-      interes_estimado=excluded.interes_estimado,
-      interes_informado=excluded.interes_informado,
-      interes_cobrado=excluded.interes_cobrado,
-      monto_estimado=excluded.monto_estimado,
-      monto_informado=excluded.monto_informado,
-      capital_recibido=excluded.capital_recibido,
-      renovacion_automatica=excluded.renovacion_automatica,
-      estado=excluded.estado,
-      id_plazo_anterior=excluded.id_plazo_anterior,
-      id_plazo_siguiente=excluded.id_plazo_siguiente,
-      observaciones=excluded.observaciones,
-      is_demo=excluded.is_demo,
-      updated_at=excluded.updated_at
-  `);
-
-  const runTransaction = db.transaction(() => {
-    stmt.run(
+    await client.query(`
+      INSERT INTO plazos_fijos (
+        id, entidad_id, banco, descripcion, tipo, capital, moneda,
+        fecha_inicio, fecha_vencimiento, dias, tna, tea,
+        interes_estimado, interes_informado, interes_cobrado,
+        monto_estimado, monto_informado, capital_recibido,
+        renovacion_automatica, estado, id_plazo_anterior, id_plazo_siguiente,
+        observaciones, is_demo, created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7,
+        $8, $9, $10, $11, $12,
+        $13, $14, $15,
+        $16, $17, $18,
+        $19, $20, $21, $22,
+        $23, $24, $25, $26
+      )
+      ON CONFLICT(id) DO UPDATE SET
+        banco=EXCLUDED.banco,
+        descripcion=EXCLUDED.descripcion,
+        tipo=EXCLUDED.tipo,
+        capital=EXCLUDED.capital,
+        fecha_inicio=EXCLUDED.fecha_inicio,
+        fecha_vencimiento=EXCLUDED.fecha_vencimiento,
+        dias=EXCLUDED.dias,
+        tna=EXCLUDED.tna,
+        tea=EXCLUDED.tea,
+        interes_estimado=EXCLUDED.interes_estimado,
+        interes_informado=EXCLUDED.interes_informado,
+        interes_cobrado=EXCLUDED.interes_cobrado,
+        monto_estimado=EXCLUDED.monto_estimado,
+        monto_informado=EXCLUDED.monto_informado,
+        capital_recibido=EXCLUDED.capital_recibido,
+        renovacion_automatica=EXCLUDED.renovacion_automatica,
+        estado=EXCLUDED.estado,
+        id_plazo_anterior=EXCLUDED.id_plazo_anterior,
+        id_plazo_siguiente=EXCLUDED.id_plazo_siguiente,
+        observaciones=EXCLUDED.observaciones,
+        is_demo=EXCLUDED.is_demo,
+        updated_at=EXCLUDED.updated_at
+    `, [
       id,
       data.entidadId || null,
       data.bank,
@@ -164,90 +201,94 @@ export function saveDeposit(db: Database.Database, data: DepositData, eventDescr
       data.isDemo ? 1 : 0,
       data.createdAt || now,
       now
-    );
+    ]);
 
     // Record Event
     const eventType = isUpdate ? 'MODIFICACION' : 'ALTA';
     const desc = eventDescription || (isUpdate ? `Modificación de datos de plazo fijo en ${data.bank}` : `Alta de plazo fijo en ${data.bank}`);
 
     const eventId = `evt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    db.prepare(`
+    await client.query(`
       INSERT INTO eventos_plazo_fijo (
         id, plazo_fijo_id, timestamp, tipo_evento, descripcion, monto_capital, monto_interes, monto_total
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(eventId, id, now, eventType, desc, data.capital, estimatedInterest, estimatedTotalAmount);
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [eventId, id, now, eventType, desc, data.capital, estimatedInterest, estimatedTotalAmount]);
 
     // Log Audit
-    logAudit(db, {
+    await logAudit(client, {
       tablaAfectada: 'plazos_fijos',
       registroId: id,
       tipoOperacion: isUpdate ? 'UPDATE' : 'INSERT',
       valoresAnteriores: isUpdate ? mapRowToDeposit(existingRow) : null,
       valoresNuevos: { id, bank: data.bank, capital: data.capital, status },
     });
-  });
 
-  runTransaction();
-  return getDepositById(db, id);
+    const resSaved = await client.query('SELECT * FROM plazos_fijos WHERE id = $1', [id]);
+    const dep = mapRowToDeposit(resSaved.rows[0]);
+    dep.status = deriveDepositStatus(dep.endDate, dep.status);
+    return dep;
+  });
 }
 
-export function confirmCollection(
-  db: Database.Database,
+export async function confirmCollection(
+  db: any,
   id: string,
   collectedInterest: number,
   collectedCapital: number,
   closeInvestment: boolean
-): any {
-  const existing = getDepositById(db, id);
+): Promise<any> {
+  const existing = await getDepositById(db, id);
   if (!existing) throw new Error('Plazo fijo no encontrado');
 
   const now = new Date().toISOString();
   const newStatus = closeInvestment ? 'CERRADO' : existing.status;
 
-  const runTransaction = db.transaction(() => {
-    db.prepare(`
+  return await withTransaction(db, async (client) => {
+    await client.query(`
       UPDATE plazos_fijos SET
-        interes_cobrado = ?,
-        capital_recibido = ?,
-        estado = ?,
-        updated_at = ?
-      WHERE id = ?
-    `).run(collectedInterest, collectedCapital, newStatus, now, id);
+        interes_cobrado = $1,
+        capital_recibido = $2,
+        estado = $3,
+        updated_at = $4
+      WHERE id = $5
+    `, [collectedInterest, collectedCapital, newStatus, now, id]);
 
     const eventId = `evt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    db.prepare(`
+    await client.query(`
       INSERT INTO eventos_plazo_fijo (
         id, plazo_fijo_id, timestamp, tipo_evento, descripcion, monto_capital, monto_interes, monto_total
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [
       eventId, id, now, 'CONFIRMACION_COBRO',
       `Confirmación de cobro: Interés $ ${collectedInterest.toLocaleString('es-AR')}`,
       collectedCapital, collectedInterest, (collectedCapital + collectedInterest)
-    );
+    ]);
 
-    logAudit(db, {
+    await logAudit(client, {
       tablaAfectada: 'plazos_fijos',
       registroId: id,
       tipoOperacion: 'UPDATE',
       valoresAnteriores: { status: existing.status, collectedInterest: existing.collectedInterest },
       valoresNuevos: { status: newStatus, collectedInterest, collectedCapital },
     });
-  });
 
-  runTransaction();
-  return getDepositById(db, id);
+    const res = await client.query('SELECT * FROM plazos_fijos WHERE id = $1', [id]);
+    const dep = mapRowToDeposit(res.rows[0]);
+    dep.status = deriveDepositStatus(dep.endDate, dep.status);
+    return dep;
+  });
 }
 
-export function renewDeposit(
-  db: Database.Database,
+export async function renewDeposit(
+  db: any,
   oldDepositId: string,
   newCapital: number,
   newTna: number,
   newDays: number,
   newStartDate: string,
   autoRenewal: boolean
-): { oldDeposit: any; newDeposit: any } {
-  const oldDeposit = getDepositById(db, oldDepositId);
+): Promise<{ oldDeposit: any; newDeposit: any }> {
+  const oldDeposit = await getDepositById(db, oldDepositId);
   if (!oldDeposit) throw new Error('Plazo fijo a renovar no encontrado');
 
   const newDepositId = `pf_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
@@ -262,20 +303,17 @@ export function renewDeposit(
   const estimatedInterest = calculateEstimatedInterest(newCapital, newTna, newDays);
   const estimatedTotalAmount = newCapital + estimatedInterest;
 
-  let createdNewDeposit: any = null;
-  let updatedOldDeposit: any = null;
-
-  const runTransaction = db.transaction(() => {
+  return await withTransaction(db, async (client) => {
     // 1. Create new deposit first so Foreign Key constraint (id_plazo_siguiente) is satisfied
-    db.prepare(`
+    await client.query(`
       INSERT INTO plazos_fijos (
         id, banco, descripcion, tipo, capital, moneda,
         fecha_inicio, fecha_vencimiento, dias, tna,
         interes_estimado, monto_estimado,
         renovacion_automatica, estado, id_plazo_anterior,
         observaciones, is_demo, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+    `, [
       newDepositId,
       oldDeposit.bank,
       `Renovación de ${oldDeposit.description || oldDeposit.bank}`,
@@ -295,102 +333,102 @@ export function renewDeposit(
       oldDeposit.isDemo ? 1 : 0,
       now,
       now
-    );
+    ]);
 
     // 2. Update old deposit pointing nextId to new deposit
-    db.prepare(`
+    await client.query(`
       UPDATE plazos_fijos SET
         estado = 'RENOVADO',
-        id_plazo_siguiente = ?,
-        updated_at = ?
-      WHERE id = ?
-    `).run(newDepositId, now, oldDepositId);
+        id_plazo_siguiente = $1,
+        updated_at = $2
+      WHERE id = $3
+    `, [newDepositId, now, oldDepositId]);
 
     // Event on old deposit
     const evtOldId = `evt_${Date.now()}_1_${Math.random().toString(36).substring(2, 5)}`;
-    db.prepare(`
+    await client.query(`
       INSERT INTO eventos_plazo_fijo (
         id, plazo_fijo_id, timestamp, tipo_evento, descripcion, monto_capital, monto_interes, monto_total
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(evtOldId, oldDepositId, now, 'RENOVACION', 'Inversión marcada como RENOVADA', oldDeposit.capital, oldDeposit.estimatedInterest, oldDeposit.estimatedTotalAmount);
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [evtOldId, oldDepositId, now, 'RENOVACION', 'Inversión marcada como RENOVADA', oldDeposit.capital, oldDeposit.estimatedInterest, oldDeposit.estimatedTotalAmount]);
 
     // Event on new deposit
     const evtNewId = `evt_${Date.now()}_2_${Math.random().toString(36).substring(2, 5)}`;
-    db.prepare(`
+    await client.query(`
       INSERT INTO eventos_plazo_fijo (
         id, plazo_fijo_id, timestamp, tipo_evento, descripcion, monto_capital, monto_interes, monto_total
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(evtNewId, newDepositId, now, 'ALTA', `Renovación vinculada al plazo fijo ID ${oldDepositId}`, newCapital, estimatedInterest, estimatedTotalAmount);
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `, [evtNewId, newDepositId, now, 'ALTA', `Renovación vinculada al plazo fijo ID ${oldDepositId}`, newCapital, estimatedInterest, estimatedTotalAmount]);
 
-    logAudit(db, {
+    await logAudit(client, {
       tablaAfectada: 'plazos_fijos',
       registroId: oldDepositId,
       tipoOperacion: 'UPDATE',
       valoresAnteriores: { status: oldDeposit.status },
       valoresNuevos: { status: 'RENOVADO', nextId: newDepositId },
     });
+
+    const oldRes = await client.query('SELECT * FROM plazos_fijos WHERE id = $1', [oldDepositId]);
+    const newRes = await client.query('SELECT * FROM plazos_fijos WHERE id = $1', [newDepositId]);
+
+    const updatedOldDeposit = mapRowToDeposit(oldRes.rows[0]);
+    updatedOldDeposit.status = deriveDepositStatus(updatedOldDeposit.endDate, updatedOldDeposit.status);
+
+    const createdNewDeposit = mapRowToDeposit(newRes.rows[0]);
+    createdNewDeposit.status = deriveDepositStatus(createdNewDeposit.endDate, createdNewDeposit.status);
+
+    return { oldDeposit: updatedOldDeposit, newDeposit: createdNewDeposit };
   });
-
-  runTransaction();
-
-  updatedOldDeposit = getDepositById(db, oldDepositId);
-  createdNewDeposit = getDepositById(db, newDepositId);
-
-  return { oldDeposit: updatedOldDeposit, newDeposit: createdNewDeposit };
 }
 
-export function deleteDeposit(db: Database.Database, id: string): void {
-  const existing = getDepositById(db, id);
+export async function deleteDeposit(db: any, id: string): Promise<void> {
+  const existing = await getDepositById(db, id);
   if (!existing) return;
 
-  const runTransaction = db.transaction(() => {
-    db.prepare('DELETE FROM eventos_plazo_fijo WHERE plazo_fijo_id = ?').run(id);
-    db.prepare('DELETE FROM plazos_fijos WHERE id = ?').run(id);
+  await withTransaction(db, async (client) => {
+    await client.query('DELETE FROM eventos_plazo_fijo WHERE plazo_fijo_id = $1', [id]);
+    await client.query('DELETE FROM plazos_fijos WHERE id = $1', [id]);
 
-    logAudit(db, {
+    await logAudit(client, {
       tablaAfectada: 'plazos_fijos',
       registroId: id,
       tipoOperacion: 'DELETE',
       valoresAnteriores: existing,
     });
   });
-
-  runTransaction();
 }
 
-export function clearData(db: Database.Database, includeReal: boolean = false): void {
-  const runTransaction = db.transaction(() => {
+export async function clearData(db: any, includeReal: boolean = false): Promise<void> {
+  await withTransaction(db, async (client) => {
     if (includeReal) {
-      db.prepare('DELETE FROM eventos_plazo_fijo').run();
-      db.prepare('DELETE FROM plazos_fijos').run();
+      await client.query('DELETE FROM eventos_plazo_fijo');
+      await client.query('DELETE FROM plazos_fijos');
     } else {
-      const demoDeposits = db.prepare('SELECT id FROM plazos_fijos WHERE is_demo = 1').all();
-      for (const d of demoDeposits as any[]) {
-        db.prepare('DELETE FROM eventos_plazo_fijo WHERE plazo_fijo_id = ?').run(d.id);
-        db.prepare('DELETE FROM plazos_fijos WHERE id = ?').run(d.id);
+      const demoDeposits = await client.query('SELECT id FROM plazos_fijos WHERE is_demo = 1');
+      for (const d of demoDeposits.rows) {
+        await client.query('DELETE FROM eventos_plazo_fijo WHERE plazo_fijo_id = $1', [d.id]);
+        await client.query('DELETE FROM plazos_fijos WHERE id = $1', [d.id]);
       }
     }
   });
-
-  runTransaction();
 }
 
-export function getAllEvents(db: Database.Database, depositId?: string): any[] {
+export async function getAllEvents(db: any, depositId?: string): Promise<any[]> {
   let query = 'SELECT * FROM eventos_plazo_fijo';
   const params: any[] = [];
 
   if (depositId) {
-    query += ' WHERE plazo_fijo_id = ?';
+    query += ' WHERE plazo_fijo_id = $1';
     params.push(depositId);
   }
 
   query += ' ORDER BY timestamp DESC';
 
-  const rows = db.prepare(query).all(...params);
-  return rows.map((r: any) => ({
+  const res = await db.query(query, params);
+  return res.rows.map((r: any) => ({
     id: r.id,
     depositId: r.plazo_fijo_id,
-    timestamp: r.timestamp,
+    timestamp: formatDateTimeString(r.timestamp),
     type: r.tipo_evento,
     description: r.descripcion,
     amounts: {
@@ -398,6 +436,6 @@ export function getAllEvents(db: Database.Database, depositId?: string): any[] {
       interest: r.monto_interes != null ? Number(r.monto_interes) : null,
       total: r.monto_total != null ? Number(r.monto_total) : null,
     },
-    metadata: r.metadata ? JSON.parse(r.metadata) : null,
+    metadata: r.metadata ? (typeof r.metadata === 'string' ? JSON.parse(r.metadata) : r.metadata) : null,
   }));
 }

@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { initDatabase } from '../../server/db/database';
-import { saveDeposit, getAllDeposits, getAllEvents } from '../../server/services/depositService';
+import { createTestDb } from './testDbHelper';
+import { saveDeposit, getAllDeposits } from '../../server/services/depositService';
 import { processBulkImport, exportBackup, restoreBackup } from '../../server/services/importExportService';
 
 describe('Integridad y Migración de Datos Backend', () => {
-  let db: ReturnType<typeof initDatabase>;
+  let db: any;
 
   beforeEach(() => {
-    db = initDatabase(':memory:');
+    db = createTestDb();
   });
 
-  it('debe migrar/guardar plazos fijos e historial e ignorar duplicados idempotentemente', () => {
+  it('debe migrar/guardar plazos fijos e historial e ignorar duplicados idempotentemente', async () => {
     const demoDeposit = {
       id: 'pf_mig_01',
       bank: 'Banco Santander',
@@ -28,18 +28,18 @@ describe('Integridad y Migración de Datos Backend', () => {
       isDemo: false,
     };
 
-    saveDeposit(db, demoDeposit, 'Migración inicial');
-    let deposits = getAllDeposits(db, true);
+    await saveDeposit(db, demoDeposit, 'Migración inicial');
+    let deposits = await getAllDeposits(db, true);
     expect(deposits).toHaveLength(1);
     expect(deposits[0].id).toBe('pf_mig_01');
 
     // Re-ejecutar guardado idempotente
-    saveDeposit(db, demoDeposit, 'Migración re-ejecutada');
-    deposits = getAllDeposits(db, true);
+    await saveDeposit(db, demoDeposit, 'Migración re-ejecutada');
+    deposits = await getAllDeposits(db, true);
     expect(deposits).toHaveLength(1); // No duplica registro
   });
 
-  it('debe procesar importación masiva y generar registro en registro_importaciones', () => {
+  it('debe procesar importación masiva y generar registro en registro_importaciones', async () => {
     const imported = [
       {
         id: 'pf_imp_1',
@@ -61,17 +61,18 @@ describe('Integridad y Migración de Datos Backend', () => {
       },
     ];
 
-    const res = processBulkImport(db, imported, 'planilla_marzo.csv');
+    const res = await processBulkImport(db, imported, 'planilla_marzo.csv');
     expect(res.importedCount).toBe(2);
     expect(res.errorsCount).toBe(0);
 
-    const log = db.prepare('SELECT * FROM registro_importaciones WHERE nombre_archivo = ?').get('planilla_marzo.csv') as any;
+    const logRes = await db.query('SELECT * FROM registro_importaciones WHERE nombre_archivo = $1', ['planilla_marzo.csv']);
+    const log = logRes.rows[0];
     expect(log).toBeDefined();
     expect(log.filas_importadas).toBe(2);
   });
 
-  it('debe exportar respaldo JSON y restaurarlo preservando integridad referencial', () => {
-    saveDeposit(db, {
+  it('debe exportar respaldo JSON y restaurarlo preservando integridad referencial', async () => {
+    await saveDeposit(db, {
       id: 'pf_bck_1',
       bank: 'Banco Nación',
       capital: 200000,
@@ -81,15 +82,15 @@ describe('Integridad y Migración de Datos Backend', () => {
       tna: 37,
     });
 
-    const backup = exportBackup(db);
+    const backup = await exportBackup(db);
     expect(backup.deposits).toHaveLength(1);
     expect(backup.events.length).toBeGreaterThan(0);
 
     // Restaurar sobre base vacía
-    const db2 = initDatabase(':memory:');
-    restoreBackup(db2, backup);
+    const db2 = createTestDb();
+    await restoreBackup(db2, backup);
 
-    const restoredDeposits = getAllDeposits(db2, true);
+    const restoredDeposits = await getAllDeposits(db2, true);
     expect(restoredDeposits).toHaveLength(1);
     expect(restoredDeposits[0].id).toBe('pf_bck_1');
   });
