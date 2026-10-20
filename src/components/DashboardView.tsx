@@ -3,27 +3,27 @@ import { FixedDeposit } from '../types';
 import { calculateFinancialSummary, formatCurrencyARS, formatPercentage, formatDateAR } from '../utils/financial';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, Title, PointElement, LineElement } from 'chart.js';
 import { Doughnut, Bar, Line } from 'react-chartjs-2';
-import {
-  TrendingUp,
-  Wallet,
-  Clock,
-  AlertCircle,
-  CheckCircle2,
-  Building2,
+import { 
+  TrendingUp, 
+  Wallet, 
+  Clock, 
+  AlertCircle, 
+  CheckCircle2, 
+  Building2, 
   ArrowUpRight,
   ShieldCheck,
   CalendarCheck
 } from 'lucide-react';
 
 ChartJS.register(
-  ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  PointElement,
+  ArcElement, 
+  Tooltip, 
+  Legend, 
+  CategoryScale, 
+  LinearScale, 
+  BarElement, 
+  Title, 
+  PointElement, 
   LineElement
 );
 
@@ -192,7 +192,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Card 4: Pendientes de Confirmación */}
-        <div
+        <div 
           onClick={() => onNavigateToList('VENCIDO_PENDIENTE')}
           className="bg-surface-container-lowest p-space-md rounded-xl shadow-xs border border-outline-variant/30 flex flex-col justify-between cursor-pointer hover:border-secondary transition-all"
         >

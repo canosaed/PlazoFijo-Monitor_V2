@@ -9,9 +9,9 @@ interface OperationalActionModalProps {
   deposit: FixedDeposit | null;
   onClose: () => void;
   onConfirmCollection: (
-    depositId: string,
-    collectedInterest: number,
-    collectedCapital: number,
+    depositId: string, 
+    collectedInterest: number, 
+    collectedCapital: number, 
     closeInvestment: boolean
   ) => Promise<void>;
   onRenewDeposit: (

@@ -7,7 +7,7 @@ export async function checkAndMigrateIndexedDB(): Promise<boolean> {
     const hasDb = dbNames?.some(d => d.name === 'plazo_fijo_pro_db');
     if (!hasDb) return false;
 
-    const db = await openDB('plazo_fijo_pro_db', 1);
+    const db = await openDB('plazofijodb', 1);
     if (!db.objectStoreNames.contains('deposits')) return false;
 
     const deposits = await db.getAll('deposits');

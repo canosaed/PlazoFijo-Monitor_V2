@@ -13,7 +13,7 @@ export function logAudit(db: Database.Database, record: AuditRecord): void {
   try {
     const stmt = db.prepare(`
       INSERT INTO auditoria_modificaciones (
-        id, tabla_afectada, registro_id, tipo_operacion,
+        id, tabla_afectada, registro_id, tipo_operacion, 
         valores_anteriores, valores_nuevos, origen, timestamp
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);

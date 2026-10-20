@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { FixedDeposit } from '../types';
 import { formatCurrencyARS, formatDateAR, formatPercentage } from '../utils/financial';
-import {
-  Calendar as CalendarIcon,
-  Clock,
-  AlertTriangle,
-  CheckCircle2,
-  RefreshCw,
+import { 
+  Calendar as CalendarIcon, 
+  Clock, 
+  AlertTriangle, 
+  CheckCircle2, 
+  RefreshCw, 
   Filter,
   ChevronLeft,
   ChevronRight

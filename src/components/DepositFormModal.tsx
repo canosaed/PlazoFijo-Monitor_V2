@@ -160,7 +160,7 @@ export const DepositFormModal: React.FC<DepositFormModalProps> = ({
       const reportedTotalAmount = numReportedInterest !== null ? numCapital + numReportedInterest : null;
 
       let status: DepositStatus = initialData?.status || 'VIGENTE';
-
+      
       const newDeposit: FixedDeposit = {
         id,
         bank: effectiveBank,
@@ -188,7 +188,7 @@ export const DepositFormModal: React.FC<DepositFormModalProps> = ({
         updatedAt: now,
       };
 
-      const eventMsg = initialData?.id
+      const eventMsg = initialData?.id 
         ? `Edición de datos del plazo fijo en ${effectiveBank}`
         : `Registro manual de plazo fijo en ${effectiveBank}`;
 

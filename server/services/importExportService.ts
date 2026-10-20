@@ -63,8 +63,8 @@ export function restoreBackup(db: Database.Database, data: any): { importedDepos
 }
 
 export function processBulkImport(
-  db: Database.Database,
-  deposits: any[],
+  db: Database.Database, 
+  deposits: any[], 
   fileName: string = 'importacion.csv'
 ): { importedCount: number; errorsCount: number } {
   let importedCount = 0;

@@ -1,16 +1,16 @@
 import React, { useState } from 'react';
 import { FixedDeposit, DepositStatus } from '../types';
 import { formatCurrencyARS, formatPercentage, formatDateAR } from '../utils/financial';
-import {
-  Search,
-  Filter,
-  Plus,
-  ArrowUpDown,
-  Eye,
-  Edit,
-  Trash2,
-  RefreshCw,
-  CheckCircle2,
+import { 
+  Search, 
+  Filter, 
+  Plus, 
+  ArrowUpDown, 
+  Eye, 
+  Edit, 
+  Trash2, 
+  RefreshCw, 
+  CheckCircle2, 
   XCircle,
   AlertTriangle,
   Building2,
@@ -48,7 +48,7 @@ export const ListView: React.FC<ListViewProps> = ({
 
   // Filter logic
   const filteredDeposits = deposits.filter((dep) => {
-    const matchesSearch =
+    const matchesSearch = 
       dep.bank.toLowerCase().includes(searchTerm.toLowerCase()) ||
       dep.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (dep.notes && dep.notes.toLowerCase().includes(searchTerm.toLowerCase()));

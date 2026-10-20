@@ -1,45 +1,35 @@
-import Database from 'better-sqlite3';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import pg from 'pg';
+import dotenv from 'dotenv';
 
-const DB_PATH = process.env.DB_PATH || path.join(process.cwd(), 'plazo_fijo.db');
+dotenv.config();
 
-let db: Database.Database | null = null;
+const { Pool } = pg;
 
-export function initDatabase(dbFilePath: string = DB_PATH): Database.Database {
-  if (db && dbFilePath === DB_PATH) {
-    return db;
-  }
+export const pool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: Number(process.env.DB_PORT || 5432),
+  database: process.env.DB_NAME || 'plazofijodb',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD,
+  ssl: process.env.DB_SSL === 'true'
+    ? { rejectUnauthorized: true }
+    : false,
+});
 
-  const instance = new Database(dbFilePath);
+pool.on('error', (error) => {
+  console.error('Error inesperado en el pool de PostgreSQL:', error);
+});
 
-  // Enable Foreign Keys and WAL Mode for better concurrency/performance
-  instance.pragma('foreign_keys = ON');
-  if (dbFilePath !== ':memory:') {
-    instance.pragma('journal_mode = WAL');
-  }
+export async function initDatabase(): Promise<void> {
+  const result = await pool.query('SELECT NOW() AS fecha');
 
-  // Load and execute schema.sql
-  const schemaPath = path.join(__dirname, 'schema.sql');
-  if (fs.existsSync(schemaPath)) {
-    const schemaSql = fs.readFileSync(schemaPath, 'utf-8');
-    instance.exec(schemaSql);
-  }
-
-  if (dbFilePath === DB_PATH) {
-    db = instance;
-  }
-
-  return instance;
+  console.log(
+    'Conexión con PostgreSQL establecida:',
+    result.rows[0].fecha
+  );
 }
 
-export function getDb(): Database.Database {
-  if (!db) {
-    return initDatabase();
-  }
-  return db;
+export async function getDb() {
+  return pool;
 }

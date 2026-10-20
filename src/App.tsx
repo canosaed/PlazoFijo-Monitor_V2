@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import type { FixedDeposit, InvestmentEvent } from './types';
-import {
-  getAllDeposits,
-  saveDeposit,
-  deleteDeposit,
-  getAllEvents,
+import { 
+  getAllDeposits, 
+  saveDeposit, 
+  deleteDeposit, 
+  getAllEvents, 
   clearAllData,
   confirmCollectionApi,
   renewDepositApi,
@@ -25,18 +25,18 @@ import { DepositFormModal } from './components/DepositFormModal';
 import { DetailModal } from './components/DetailModal';
 import { OperationalActionModal } from './components/OperationalActionModal';
 
-import {
-  LayoutDashboard,
-  Wallet,
-  Calculator,
-  Calendar as CalendarIcon,
-  FileSpreadsheet,
-  History,
-  FileText,
-  RefreshCw,
-  ShieldCheck,
-  Menu,
-  X
+import { 
+  LayoutDashboard, 
+  Wallet, 
+  Calculator, 
+  Calendar as CalendarIcon, 
+  FileSpreadsheet, 
+  History, 
+  FileText, 
+  RefreshCw, 
+  ShieldCheck, 
+  Menu, 
+  X 
 } from 'lucide-react';
 
 export function App() {
@@ -122,9 +122,9 @@ export function App() {
   };
 
   const handleConfirmCollection = async (
-    depositId: string,
-    collectedInterest: number,
-    collectedCapital: number,
+    depositId: string, 
+    collectedInterest: number, 
+    collectedCapital: number, 
     closeInvestment: boolean
   ) => {
     await confirmCollectionApi(depositId, collectedInterest, collectedCapital, closeInvestment);

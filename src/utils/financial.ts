@@ -178,8 +178,8 @@ export function calculateFinancialSummary(deposits: FixedDeposit[], referenceDat
     }
   });
 
-  const weightedAverageTna = totalActiveCapital > 0
-    ? Math.round((weightedTnaSum / totalActiveCapital) * 100) / 100
+  const weightedAverageTna = totalActiveCapital > 0 
+    ? Math.round((weightedTnaSum / totalActiveCapital) * 100) / 100 
     : 0;
 
   return {

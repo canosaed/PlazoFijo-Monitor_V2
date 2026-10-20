@@ -87,7 +87,7 @@ export function getDepositById(db: Database.Database, id: string): any | null {
 export function saveDeposit(db: Database.Database, data: DepositData, eventDescription?: string): any {
   const now = new Date().toISOString();
   const id = data.id || `pf_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-
+  
   const estimatedInterest = data.estimatedInterest ?? calculateEstimatedInterest(data.capital, data.tna, data.days);
   const estimatedTotalAmount = data.estimatedTotalAmount ?? (data.capital + estimatedInterest);
   const status = data.status || deriveDepositStatus(data.endDate, 'VIGENTE');

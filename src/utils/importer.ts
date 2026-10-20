@@ -49,7 +49,7 @@ export const SAMPLE_TEMPLATE_ROWS = [
 ];
 
 export function validateAndParseImportRow(
-  row: Record<string, any>,
+  row: Record<string, any>, 
   rowIndex: number,
   existingDeposits: FixedDeposit[] = []
 ): RawImportRow {
@@ -119,7 +119,7 @@ export function validateAndParseImportRow(
     const estimatedTotalAmount = capital + estimatedInterest;
 
     // Check potential duplicate (same bank, capital, startDate)
-    isDuplicate = existingDeposits.some(d =>
+    isDuplicate = existingDeposits.some(d => 
       d.bank.toLowerCase() === bank.toLowerCase() &&
       Math.abs(d.capital - capital) < 0.01 &&
       d.startDate === startDate

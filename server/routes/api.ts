@@ -1,14 +1,14 @@
 import { Router, Request, Response } from 'express';
 import { getDb } from '../db/database.js';
-import {
-  getAllDeposits,
-  getDepositById,
-  saveDeposit,
-  confirmCollection,
-  renewDeposit,
-  deleteDeposit,
-  clearData,
-  getAllEvents
+import { 
+  getAllDeposits, 
+  getDepositById, 
+  saveDeposit, 
+  confirmCollection, 
+  renewDeposit, 
+  deleteDeposit, 
+  clearData, 
+  getAllEvents 
 } from '../services/depositService.js';
 import { exportBackup, restoreBackup, processBulkImport } from '../services/importExportService.js';
 
@@ -61,10 +61,10 @@ router.post('/deposits/:id/confirm-collection', (req: Request, res: Response) =>
     const db = getDb();
     const { collectedInterest, collectedCapital, closeInvestment } = req.body;
     const updated = confirmCollection(
-      db,
-      req.params.id,
-      Number(collectedInterest || 0),
-      Number(collectedCapital || 0),
+      db, 
+      req.params.id, 
+      Number(collectedInterest || 0), 
+      Number(collectedCapital || 0), 
       Boolean(closeInvestment)
     );
     res.json({ success: true, data: updated });
@@ -82,12 +82,12 @@ router.post('/deposits/:id/renew', (req: Request, res: Response) => {
       return res.status(400).json({ success: false, error: 'Parámetros de renovación incompletos' });
     }
     const result = renewDeposit(
-      db,
-      req.params.id,
-      Number(newCapital),
-      Number(newTna),
-      Number(newDays),
-      String(newStartDate),
+      db, 
+      req.params.id, 
+      Number(newCapital), 
+      Number(newTna), 
+      Number(newDays), 
+      String(newStartDate), 
       Boolean(autoRenewal)
     );
     res.json({ success: true, data: result });

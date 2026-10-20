@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import 'fake-indexeddb/auto';
-import {
-  getDB,
-  getAllDeposits,
-  saveDeposit,
-  getEventsByDepositId,
-  exportBackupJSON,
+import { 
+  getDB, 
+  getAllDeposits, 
+  saveDeposit, 
+  getEventsByDepositId, 
+  exportBackupJSON, 
   restoreBackupJSON,
-  clearAllData
+  clearAllData 
 } from '../services/db';
 import { FixedDeposit } from '../types';
 

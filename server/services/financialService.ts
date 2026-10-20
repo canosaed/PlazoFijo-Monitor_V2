@@ -15,8 +15,8 @@ export function calculateEndDate(startDateStr: string, days: number): string {
 }
 
 export function deriveDepositStatus(
-  endDateStr: string,
-  currentStatus: string,
+  endDateStr: string, 
+  currentStatus: string, 
   todayStr?: string
 ): string {
   if (['CERRADO', 'RENOVADO', 'CANCELADO'].includes(currentStatus)) {

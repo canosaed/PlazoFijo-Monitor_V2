@@ -28,7 +28,7 @@ interface PlazoFijoDB extends DBSchema {
   };
 }
 
-const DB_NAME = 'plazo_fijo_pro_db';
+const DB_NAME = 'plazofijodb';
 const DB_VERSION = 1;
 
 let dbPromise: Promise<IDBPDatabase<PlazoFijoDB>> | null = null;
@@ -77,10 +77,10 @@ export async function getDepositById(id: string): Promise<FixedDeposit | undefin
 export async function saveDeposit(deposit: FixedDeposit, eventDescription?: string): Promise<void> {
   const db = await getDB();
   const tx = db.transaction(['deposits', 'events'], 'readwrite');
-
+  
   const existing = await tx.objectStore('deposits').get(deposit.id);
   const now = new Date().toISOString();
-
+  
   const updatedDeposit: FixedDeposit = {
     ...deposit,
     updatedAt: now,
@@ -135,13 +135,13 @@ export async function deleteDeposit(id: string): Promise<void> {
   const db = await getDB();
   const tx = db.transaction(['deposits', 'events'], 'readwrite');
   await tx.objectStore('deposits').delete(id);
-
+  
   // Clean up associated events
   const events = await tx.objectStore('events').index('by-depositId').getAllKeys(id);
   for (const key of events) {
     await tx.objectStore('events').delete(key);
   }
-
+  
   await tx.done;
 }
 
@@ -171,7 +171,7 @@ export async function exportBackupJSON(): Promise<BackupData> {
   const db = await getDB();
   const deposits = await db.getAll('deposits');
   const events = await db.getAll('events');
-
+  
   return {
     version: DB_VERSION,
     exportedAt: new Date().toISOString(),

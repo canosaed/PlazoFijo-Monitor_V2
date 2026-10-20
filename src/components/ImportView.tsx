@@ -4,13 +4,13 @@ import { validateAndParseImportRow, RawImportRow, TEMPLATE_HEADERS, SAMPLE_TEMPL
 import { formatCurrencyARS, formatDateAR } from '../utils/financial';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import {
-  FileSpreadsheet,
-  Upload,
-  Download,
-  CheckCircle2,
-  AlertTriangle,
-  XCircle,
+import { 
+  FileSpreadsheet, 
+  Upload, 
+  Download, 
+  CheckCircle2, 
+  AlertTriangle, 
+  XCircle, 
   FileText,
   ArrowRight,
   RefreshCw,
@@ -83,7 +83,7 @@ export const ImportView: React.FC<ImportViewProps> = ({
   };
 
   const processParsedJson = (jsonRows: Record<string, any>[]) => {
-    const parsedRows = jsonRows.map((r, idx) =>
+    const parsedRows = jsonRows.map((r, idx) => 
       validateAndParseImportRow(r, idx + 1, existingDeposits)
     );
     setRows(parsedRows);

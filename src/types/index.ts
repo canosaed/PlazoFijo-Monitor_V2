@@ -1,11 +1,11 @@
 export type DepositType = 'TRADICIONAL_TF' | 'UVA' | 'PRECANCELABLE' | 'OTRO';
 
-export type DepositStatus =
-  | 'VIGENTE'
-  | 'PROXIMO_A_VENCER'
-  | 'VENCIDO_PENDIENTE'
-  | 'RENOVADO'
-  | 'CERRADO'
+export type DepositStatus = 
+  | 'VIGENTE' 
+  | 'PROXIMO_A_VENCER' 
+  | 'VENCIDO_PENDIENTE' 
+  | 'RENOVADO' 
+  | 'CERRADO' 
   | 'CANCELADO';
 
 export interface FixedDeposit {
@@ -35,14 +35,14 @@ export interface FixedDeposit {
   updatedAt: string;
 }
 
-export type EventType =
-  | 'ALTA'
-  | 'MODIFICACION'
-  | 'VENCIMIENTO'
-  | 'CONFIRMACION_COBRO'
-  | 'CONFIRMACION_CAPITAL'
-  | 'RENOVACION'
-  | 'CIERRE'
+export type EventType = 
+  | 'ALTA' 
+  | 'MODIFICACION' 
+  | 'VENCIMIENTO' 
+  | 'CONFIRMACION_COBRO' 
+  | 'CONFIRMACION_CAPITAL' 
+  | 'RENOVACION' 
+  | 'CIERRE' 
   | 'CANCELACION';
 
 export interface InvestmentEvent {

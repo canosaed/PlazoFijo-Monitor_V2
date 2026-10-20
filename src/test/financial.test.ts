@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import {
-  calculateEstimatedInterest,
-  calculateTEAFromTNA,
-  formatCurrencyARS,
-  formatPercentage,
-  formatDateAR,
-  parseArgentineNumber,
+import { 
+  calculateEstimatedInterest, 
+  calculateTEAFromTNA, 
+  formatCurrencyARS, 
+  formatPercentage, 
+  formatDateAR, 
+  parseArgentineNumber, 
   parseArgentineDate,
   calculateFinancialSummary,
   deriveDepositStatus
