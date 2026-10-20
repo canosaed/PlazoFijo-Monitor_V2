@@ -1,6 +1,20 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: plazo_fijo_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: plazofijodb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./server/db/schema.postgres.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: always
+
   backend:
     build:
       context: .
@@ -10,10 +24,14 @@ services:
     environment:
       - PORT=3001
       - NODE_ENV=production
-      - DB_PATH=/app/data/plazo_fijo.db
+      - DB_TYPE=postgres
+      - DATABASE_URL=postgresql://postgres:postgrespassword@postgres:5432/plazofijodb
     volumes:
       - plazo_data:/app/data
+    depends_on:
+      - postgres
     restart: always
 
 volumes:
+  pg_data:
   plazo_data:
