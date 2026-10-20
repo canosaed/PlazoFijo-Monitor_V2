@@ -30,7 +30,7 @@ router.get('/deposits', async (req: Request, res: Response) => {
 router.get('/deposits/:id', async (req: Request, res: Response) => {
   try {
     const db = await getDb();
-    const deposit = await getDepositById(db, req.params.id);
+    const deposit = await getDepositById(db, String(req.params.id));
     if (!deposit) {
       return res.status(404).json({ success: false, error: 'Plazo fijo no encontrado' });
     }
@@ -62,7 +62,7 @@ router.post('/deposits/:id/confirm-collection', async (req: Request, res: Respon
     const { collectedInterest, collectedCapital, closeInvestment } = req.body;
     const updated = await confirmCollection(
       db, 
-      req.params.id, 
+      String(req.params.id), 
       Number(collectedInterest || 0), 
       Number(collectedCapital || 0), 
       Boolean(closeInvestment)
@@ -83,7 +83,7 @@ router.post('/deposits/:id/renew', async (req: Request, res: Response) => {
     }
     const result = await renewDeposit(
       db, 
-      req.params.id, 
+      String(req.params.id), 
       Number(newCapital), 
       Number(newTna), 
       Number(newDays), 
@@ -100,7 +100,7 @@ router.post('/deposits/:id/renew', async (req: Request, res: Response) => {
 router.delete('/deposits/:id', async (req: Request, res: Response) => {
   try {
     const db = await getDb();
-    await deleteDeposit(db, req.params.id);
+    await deleteDeposit(db, String(req.params.id));
     res.json({ success: true, message: 'Plazo fijo eliminado correctamente' });
   } catch (err: any) {
     res.status(500).json({ success: false, error: err.message });

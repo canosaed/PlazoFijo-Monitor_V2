@@ -1,6 +1,4 @@
-// @ts-ignore -- Express type declarations are not installed.
 import express from 'express';
-// @ts-ignore
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';

@@ -4,7 +4,7 @@ import { migrateIndexedDbDataApi } from './api';
 export async function checkAndMigrateIndexedDB(): Promise<boolean> {
   try {
     const dbNames = await indexedDB.databases?.();
-    const hasDb = dbNames?.some(d => d.name === 'plazo_fijo_pro_db');
+    const hasDb = dbNames?.some(d => d.name === 'plazofijodb');
     if (!hasDb) return false;
 
     const db = await openDB('plazofijodb', 1);
