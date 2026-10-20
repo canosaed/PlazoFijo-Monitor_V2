@@ -1,0 +1,6 @@
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+.tabular-nums {
+  font-feature-settings: "tnum" 1, "cv05" 1;
+}
