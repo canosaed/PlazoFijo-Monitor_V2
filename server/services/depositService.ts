@@ -48,22 +48,28 @@ function formatDateTimeString(val: any): string {
 }
 
 export async function withTransaction<T>(db: any, callback: (client: any) => Promise<T>): Promise<T> {
-  const isPool = typeof db.connect === 'function';
-  const client = isPool ? await db.connect() : db;
+  const needsClientRelease = typeof db.connect === 'function' && typeof db.release !== 'function';
+  const client = needsClientRelease ? await db.connect() : db;
   try {
-    await client.query('BEGIN');
+    if (needsClientRelease) {
+      await client.query('BEGIN');
+    }
     const result = await callback(client);
-    await client.query('COMMIT');
+    if (needsClientRelease) {
+      await client.query('COMMIT');
+    }
     return result;
   } catch (err) {
-    try {
-      await client.query('ROLLBACK');
-    } catch (_) {
-      // Ignore rollback errors if already aborted
+    if (needsClientRelease) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (_) {
+        // Ignore rollback errors if already aborted
+      }
     }
     throw err;
   } finally {
-    if (isPool) {
+    if (needsClientRelease) {
       client.release();
     }
   }
